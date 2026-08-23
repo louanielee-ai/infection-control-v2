@@ -780,14 +780,17 @@ body{
     <div id="sync-main-area2" style="display:none">
       <div id="sync-last-saved2" style="font-size:12px;color:var(--gray);text-align:center;margin-bottom:14px;padding:8px;background:var(--gray-lt);border-radius:8px">마지막 저장: 없음</div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <button onclick="gdriveSave2()" id="sync-save-btn2" style="width:100%;padding:15px;background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <button onclick="gdriveSave2()" id="sync-save-btn2" style="width:100%;padding:15px;background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">
           ☁️ Drive에 저장
         </button>
-        <button onclick="gdriveLoad2()" style="width:100%;padding:15px;background:var(--blue-lt);color:var(--blue);border:2px solid var(--blue-md);border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <button onclick="gdriveLoad2()" style="width:100%;padding:15px;background:var(--blue-lt);color:var(--blue);border:2px solid var(--blue-md);border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">
           ⬇️ Drive에서 불러오기
         </button>
       </div>
-      <button onclick="gdriveLogout()" style="width:100%;padding:10px;background:none;color:var(--gray);border:none;font-size:12px;cursor:pointer;margin-top:10px">
+      <button onclick="resetLocalData()" style="width:100%;padding:12px;background:#FEF2F2;color:#DC2626;border:1.5px solid #FEE2E2;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;margin-top:10px">
+        🔄 로컬 데이터 초기화 (히스토리 새로고침)
+      </button>
+      <button onclick="gdriveLogout()" style="width:100%;padding:10px;background:none;color:var(--gray);border:none;font-size:12px;cursor:pointer;margin-top:4px">
         연결 해제
       </button>
     </div>
@@ -1442,10 +1445,8 @@ function loadST(){
   } else {
     Object.entries(IMPORT_SESSIONS).forEach(([k,v])=>{
       if(!ST.sessions[k]){
-        // Session doesn't exist → add it
         ST.sessions[k]=v;
       } else {
-        // Session exists → fill in missing dept scores from import
         if(!ST.sessions[k].scores) ST.sessions[k].scores={};
         Object.entries(v.scores||{}).forEach(([dId,sc])=>{
           if(!ST.sessions[k].scores[dId] || Object.keys(ST.sessions[k].scores[dId]).length===0){
@@ -1455,6 +1456,8 @@ function loadST(){
       }
     });
   }
+  // Save merged result back to localStorage immediately
+  try{saveST();}catch(e){}
   // migrate from old format
   try{
     const old=localStorage.getItem('ic_state');
@@ -1635,6 +1638,22 @@ function updateSyncUI2(loggedIn){
   if(l)l.style.display=loggedIn?'none':'block';
   if(m)m.style.display=loggedIn?'block':'none';
   updateSyncUI(loggedIn);
+}
+
+function resetLocalData(){
+  if(!confirm('로컬 데이터를 초기화하고 히스토리 데이터로 새로고침할까요?\n현재 진행 중인 라운딩 데이터는 유지됩니다.')) return;
+  // Keep current session ID and inspector
+  const currId = ST.currentSessionId;
+  const inspector = ST.inspector;
+  // Clear localStorage session data
+  localStorage.removeItem('ic_state_v2');
+  // Reload sessions from IMPORT_SESSIONS
+  ST.sessions = Object.assign({}, IMPORT_SESSIONS);
+  ST.currentSessionId = currId;
+  ST.inspector = inspector;
+  saveST();
+  renderHome();
+  showToast('✅ 데이터 새로고침 완료!');
 }
 
 async function gdriveSave2(){
